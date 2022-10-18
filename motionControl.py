@@ -72,7 +72,7 @@ class MyVehicle(Vehicle):
 		self.send_mavlink(msg)	# send command to vehicle
 
 	def get_location(self):
-		""" Obtiene la ubicación global (latitud y longitud) en forma de string """
+		""" Obtiene la ubicación global (latitud y longitud) para el protocolo de comunicacion """
 		global_cords = self.location.global_frame
 		if global_cords.lat >= 0:
 			latitude = f'{global_cords.lat:.5f}'
@@ -87,6 +87,16 @@ class MyVehicle(Vehicle):
 			longitude = f'{-global_cords.lon:.5f}'
 			EW_indicator = 'W'
 		return (latitude,NS_indicator,longitude,EW_indicator)
+
+	def get_mode(self):
+		""" Obtiene el System mode para el protocolo de comunicación """
+		mode = self.mode.name
+		if mode == "LOITER" or mode == "MANUAL":
+			return '1'
+		elif mode == "GUIDED":
+			return '2'
+		else:
+			return '3'
 
 	def arm(self):
 		""" Habilita motores y cambia a modo guiado """

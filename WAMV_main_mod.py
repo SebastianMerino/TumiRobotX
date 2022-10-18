@@ -28,34 +28,37 @@ def taskMsg():
 	threading.Timer(1.0, taskMsg).start()
 	AEDTDate = datetime.today().strftime('%d%m%y')
 	AEDTTime = datetime.today().strftime('%H%M%S')
-	if task == "3":
-		(Latitude, NSIndicator, Longitud, EWIndicator) = pixhawk.get_location()
+	if task == "1":
 		MessageID = "$RXHRB"
-		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID +  "," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
-	elif task == "4":
+		(Latitude, NSIndicator, Longitud, EWIndicator) = pixhawk.get_location()
+		SystemMode = pixhawk.get_mode()
+		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + ...
+		"," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + ...
+		EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
+	elif task == "2":
 		MessageID = "$RXGAT"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + ActEntGate +  "," + ActExtGate +  "*"
-	elif task == "5":
+	elif task == "3":
 		MessageID = "$RXPTH"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Finished +  "*"
-	elif task == "6":
+	elif task == "4":
 		MessageID = "$RXENC"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Wildlife1 +  "," + Wildlife2 + "," + Wildlife3 + "*"
-	elif task == "7":
+	elif task == "5":
 		MessageID = "$RXCOD"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + LightPat + "*"
-	elif task == "8":
+	elif task == "6":
 		MessageID = "$RXDOK"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Color + "," + AMSStatus + "*"
-	elif task == "9":
+	elif task == "7":
 		MessageID = "$RXFLG"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Color + "," + AMSStatus + "*"
-	elif task == "10":
+	elif task == "8":
 		MessageID = "$RXUAV"
-		msg = "Realizando Tarea 10 *"
-	elif task == "11":
+		msg = "Mensaje Tarea 8 *"
+	elif task == "9":
 		MessageID = "$RXUAV"
-		msg = "Realizando Tarea 11 *"
+		msg = "Mensaje Tarea 9 *"
 
 	msg_final = msg + str(checksum(msg)).upper()
 	print(msg_final)
@@ -112,44 +115,60 @@ Hyp_EST = 0
 
 ###########################   Messages Format    ###############################
 # Common 
-MessageID = "0"
-AEDTDate = "0"
-AEDTTime ="0"
-TeamID = "0"
-Checksum = "0"
+MessageID = ""
+AEDTDate = ""
+AEDTTime =""
+TeamID = ""
+Checksum = ""
 
-# C3 Task
-Latitude = "0"
-NSIndicator = "0"
-Longitud = "0"
-EWIndicator = "0"
-SystemMode = "0"
-UAVStatus = "3"
+# C3, Task 1
+Latitude = ""
+NSIndicator = ""
+Longitud = ""
+EWIndicator = ""
+SystemMode = ""
+UAVStatus = ""
 
-# C4 Task
-ActEntGate = "0"
-ActExtGate = "0"
+# C4, Task 2
+ActEntGate = ""
+ActExtGate = ""
 
-# C5 Task
-Finished = "0"
+# C5, Task 3
+Finished = ""
 
-# C6 Task
-Wildlife1 = "0"
-Wildlife2 = "0"
-Wildlife3 = "0"
+# C6, Task 4
+Wildlife1 = ""
+Wildlife2 = ""
+Wildlife3 = ""
 
-# C7 Task
-LightPat = "0"
+# C7, Task 5
+LightPat = ""
 
-# C8 Task
-Color = "0"
-AMSStatus = "0"
+# C8, Task 6
+Color = ""
+AMSStatus = ""
 
-# C9 Task
-Color = "0"
-AMSStatus = "0"
+# C9, Task 7
+Color = ""
+AMSStatus = ""
 
+# C10, Task 8
+UAVStatus = ""
+Item = ""
+Status = ""
 
+# C11, Task 9
+Object1 = ""
+Obj1Latitude = ""
+Obj1NSIndicator = ""
+Obj1Longitud = ""
+Obj1EWIndicator = ""
+Object2 = ""
+Obj2Latitude = ""
+Obj2NSIndicator = ""
+Obj2Longitud = ""
+Obj2EWIndicator = ""
+UAVStatus = ""
 ###########################      Datos Lidar     ###############################
 
 distancia_max = 12000				#distancia maxima de alcance del lidar
@@ -238,7 +257,6 @@ task = input()
 # Envia mensaje cada 1 segundo dependiendo de la tarea elegida
 taskMsg()
 
-
 # Deteccion de camara
 captura_1 = cv2.VideoCapture(0) #a veces el puerto puede ser 0, -1, 1
 captura_2 = cv2.VideoCapture(1) #a veces el puerto puede ser 0, -1, 1
@@ -247,14 +265,12 @@ hostname = 'os1-991918000500.local'
 
 ###########################    Loop Principal    ###############################
 
-if task == "3":
-	(Latitude, NSIndicator, Longitud, EWIndicator) = pixhawk.get_location()
-	MessageID = "$RXHRB"
-	msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID +  "," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
-elif task == "4":
-	MessageID = "$RXGAT"
-	msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + ActEntGate +  "," + ActExtGate +  "*"
-elif task == "5":
+if task == "1":
+	print("Realizando tarea 1: Heartbeat Message")
+elif task == "2":
+	print("Realizando tarea 2: Entrance and Exit Gates")
+elif task == "3":
+	print("Realizando tarea 3: Follow the Path")
 	with closing(client.Scans.stream(hostname, lidar_port, complete = False)) as stream:
 		show = True     
 		ranges_aol_buffer = []
@@ -326,26 +342,18 @@ elif task == "5":
 				cv2.circle(image_range_recortada_camara2,(x_lidar2_img,y_lidar2_img),5,(0,255,0),-1)
 				cv2.imshow('Lidar_Imagen2', image_range_recortada_camara2)
 				
+elif task == "4":
+	print("Realizando tarea 4: Wildlife Encounter - React and Report")
+elif task == "5":
+	print("Realizando tarea 5: Scan the Code")
 elif task == "6":
-	MessageID = "$RXENC"
-	msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Wildlife1 +  "," + Wildlife2 + "," + Wildlife3 + "*"
+	print("Realizando tarea 6: Detect and Dock")
 elif task == "7":
-	MessageID = "$RXCOD"
-	msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + LightPat + "*"
+	print("Realizando tarea 7: Find and Fling")
 elif task == "8":
-	MessageID = "$RXDOK"
-	msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Color + "," + AMSStatus + "*"
+	print("Realizando tarea 8: UAV Replenishment")
 elif task == "9":
-	MessageID = "$RXFLG"
-	msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Color + "," + AMSStatus + "*"
-elif task == "10":
-	MessageID = "$RXUAV"
-	msg = "Realizando Tarea 10 *"
-elif task == "11":
-	MessageID = "$RXUAV"
-	msg = "Realizando Tarea 11 *"
-msg_final = msg + str(checksum(msg)).upper()
-print(msg_final)
+	print("Realizando tarea 9: UAV Search and Report")
 
 captura_1.release()
 captura_2.release()
