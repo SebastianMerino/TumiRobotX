@@ -32,9 +32,7 @@ def taskMsg():
 		MessageID = "$RXHRB"
 		(Latitude, NSIndicator, Longitud, EWIndicator) = pixhawk.get_location()
 		SystemMode = pixhawk.get_mode()
-		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + ...
-		"," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + ...
-		EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
+		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
 	elif task == "2":
 		MessageID = "$RXGAT"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + ActEntGate +  "," + ActExtGate +  "*"
@@ -59,6 +57,8 @@ def taskMsg():
 	elif task == "9":
 		MessageID = "$RXUAV"
 		msg = "Mensaje Tarea 9 *"
+	else:
+		raise Exception("Tarea no disponible")
 
 	msg_final = msg + str(checksum(msg)).upper()
 	print(msg_final)
@@ -209,8 +209,8 @@ altura_camara = 800				#tamaño por default
 device_list = list_ports.comports()
 
 for device in device_list:
-	print(device.vid)
-	print(device.pid)
+	#print(device.vid)
+	#print(device.pid)
 	if (device.vid != None or device.pid != None):
 		if (device.vid == Nuc_VID and device.pid == Nuc_PID):
 			Nuc = device.device
