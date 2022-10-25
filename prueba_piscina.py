@@ -4,6 +4,7 @@ comunicación entre Pixhawk y Jetson para el proyecto WAM-V
 
 Prueba de movimiento en piscina
 """
+import logging
 from motionControl import *
 from dronekit import connect
 from serial.tools import list_ports
@@ -32,22 +33,28 @@ logger.setLevel(logging.CRITICAL)
 try:
 	while not vehicle.get_mode() == 2:
 		pass
-	#----------------------------------------------------------------------------
-	# COMANDO PARA MOVER AL VEHICULO
-	#----------------------------------------------------------------------------
 	vehicle.groundspeed = 0.15     # Velocidad de movimiento 1m/s
-	metros_adelante = 5
-	metros_derecha = 0
-
-	# 5 m hacia adelante
-	vehicle.go_to(metros_adelante,metros_derecha,relative=True,blocking=True,tolerance=1)
-
+	"""
+	#----------------------------------------------------------------------------
+	# PRUEBA IDA Y VUELTA
+	#----------------------------------------------------------------------------
+	# 5m hacia adelante
+	vehicle.go_to(x=5,y=0,relative=True,blocking=True,tolerance=1)
 	# Giro de 180
-	vehicle.set_heading(180,relative=True,blocking=True,tolerance=15)
-
+	vehicle.set_heading(180,relative=True,blocking=True,tolerance=10)
 	# 5m de regreso
-	vehicle.go_to(metros_adelante,metros_derecha,relative=True,blocking=True,tolerance=1)
+	vehicle.go_to(x=5,y=0,relative=True,blocking=True,tolerance=1)
+	"""
 
+	#----------------------------------------------------------------------------
+	# PRUEBA GIROS
+	#----------------------------------------------------------------------------
+	vehicle.set_heading(180,relative=True,blocking=True,tolerance=10)
+	time.sleep(1)
+	vehicle.set_heading(-90,relative=True,blocking=True,tolerance=10)
+	time.sleep(1)
+	vehicle.set_heading(90,relative=True,blocking=True,tolerance=10)
+	
 finally:
 	vehicle.disarm()
 	vehicle.close()

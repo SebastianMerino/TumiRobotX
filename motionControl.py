@@ -11,7 +11,6 @@ Referencias:
 
 import math
 import time
-import logging
 from dronekit import Vehicle, mavutil, LocationLocal, VehicleMode
 
 #-------------------------------------------------------------------
@@ -45,13 +44,17 @@ class MyVehicle(Vehicle):
 			"""	Actualiza la propiedad raw_pwm cuando se recibe el mensaje """
 			self._raw_pwm.PWMDerecha = message.servo1_raw
 			self._raw_pwm.PWMIzquierda = message.servo3_raw
-
-			# Notify all observers of new message (with new value)
 			self.notify_attribute_listeners('raw_pwm', self._raw_pwm)
 
 		@self.on_message('POSITION_TARGET_LOCAL_NED')
 		def target_listener(self, name, message):
-			print(message)
+			self._target = LocationLocal(message.x,message.y,0)
+			self.notify_attribute_listeners('target', self._target)
+
+	def close(self, *args):
+		self.mode = VehicleMode('HOLD')
+		self.disarm()
+		super(MyVehicle, self).close(*args)
 
 	#-------------------------------------------------------------------
 	#	Propiedades agregadas
@@ -139,7 +142,6 @@ class MyVehicle(Vehicle):
 			print("Vehicle is not armable yet...")
 			time.sleep(1)
 		print("Arming motors")
-		#self.mode    = VehicleMode("HOLD")
 		self.armed   = True
 		while not self.armed:
 			print("Waiting for arming...")
@@ -161,6 +163,7 @@ class MyVehicle(Vehicle):
 			relative:	Indica si las coordenadas son relativas al vehículo o NED 
 			blocking:	Indica si debe bloquear hasta llegar al objetivo
 			tolerance:	Tolerancia en metros para decidir si de ha llegado al objetivo """
+
 		# Guarda objetivo en coordenadas absolutas en variable target
 		if relative:
 			sent_target = self.convert_relative_to_NED(x,y)
@@ -179,14 +182,16 @@ class MyVehicle(Vehicle):
 			0, 0)    				# yaw, yaw_rate (not used) 
 		self.send_mavlink(msg)
 
-		# Solicita la posicion del objetivo a la pixhawk
-		#self.request_target()
+		# Actualiza target
+		# self.request_target()
 		self._target = sent_target
 
 		# Espera hasta llegar al objetivo
 		while True:
 			if not blocking or self.reached_target(tolerance):
 				break
+			if not self.get_mode() == 2:
+				raise Exception('Command interrupted. Vehicle is not on GUIDED mode')
 			time.sleep(0.1)		# Chequea 10 veces por segundo
 
 	def set_heading(self, heading, relative=True, blocking=False, tolerance = 15):
@@ -199,6 +204,7 @@ class MyVehicle(Vehicle):
 			tolerance:	Tolerancia en grados sexagesimales. Solo se utiliza si
 						blocking = True. La funcion termina cuando la orientacion
 						es la orientecion deseada +- tolerancia """
+
 		# Hallar orientacion en coordenadas absolutas
 		if relative:
 			theta = reduce_angle(self.attitude.yaw + heading*math.pi/180)
@@ -222,6 +228,8 @@ class MyVehicle(Vehicle):
 			self.send_mavlink(msg)
 			if not blocking or abs(reduce_angle(theta - self.attitude.yaw))<tolerance_rad:
 				break
+			if not self.get_mode() == 2:
+				raise Exception('Command interrupted. Vehicle is not on GUIDED mode')
 			time.sleep(0.5)
 
 	def point_to(self, x, y, relative=True, blocking=False, tolerance = 15):
