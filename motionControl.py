@@ -9,9 +9,10 @@ Referencias:
 	https://mavlink.io/en/messages/common.html
 """
 
-from dronekit import Vehicle, mavutil, LocationLocal, VehicleMode
-import time
 import math
+import time
+import logging
+from dronekit import Vehicle, mavutil, LocationLocal, VehicleMode
 
 #-------------------------------------------------------------------
 #	Clase para manejar información de las PWM
@@ -37,10 +38,10 @@ class MyVehicle(Vehicle):
 		super(MyVehicle, self).__init__(*args)
 
 		self._raw_pwm = RawPWM()
-		self._target = LocationLocal(None,None,None)
+		self._target = None
 
 		@self.on_message('SERVO_OUTPUT_RAW')
-		def listener(self, name, message):
+		def pwm_listener(self, name, message):
 			"""	Actualiza la propiedad raw_pwm cuando se recibe el mensaje """
 			self._raw_pwm.PWMDerecha = message.servo1_raw
 			self._raw_pwm.PWMIzquierda = message.servo3_raw
@@ -48,6 +49,13 @@ class MyVehicle(Vehicle):
 			# Notify all observers of new message (with new value)
 			self.notify_attribute_listeners('raw_pwm', self._raw_pwm)
 
+		@self.on_message('POSITION_TARGET_LOCAL_NED')
+		def target_listener(self, name, message):
+			print(message)
+
+	#-------------------------------------------------------------------
+	#	Propiedades agregadas
+	#-------------------------------------------------------------------
 	@property
 	def raw_pwm(self):
 		""" Propiedad que contiene el tiempo en alta de cada PWM en us """
@@ -58,6 +66,9 @@ class MyVehicle(Vehicle):
 		""" Propiedad que contiene el tiempo en alta de cada PWM en us """
 		return self._target
 
+	#-------------------------------------------------------------------
+	#	Funciones para obtener información de la pixhawk
+	#-------------------------------------------------------------------
 	def request_pwm(self, freq):
 		""" Envía un mensaje al vehículo para que actualice la info de las
 		PWM de los motores con la frecuencia especificada """
@@ -65,9 +76,23 @@ class MyVehicle(Vehicle):
 			0, 0,    # target_system, target_component
 			mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, #command
 			0,					#confirmation
-			mavutil.mavlink.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW,
+			mavutil.mavlink.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW,	# message
 			1/freq * 1000000,	# Time between messages in us
 			0,0,0,0,			# Ignored
+			0)      			# Response target
+		self.send_mavlink(msg)	# send command to vehicle
+
+	def request_target(self):
+		""" Envía una mensaje al vehículo para que devuelva la última 
+		posición objetivo enviada 
+		NOTA: esta funcion no se utiliza porque al parecer nunca se
+		reciben este tipo de mensajes """
+		msg = self.message_factory.command_long_encode(
+			0, 0,    # target_system, target_component
+			mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,	#command
+			0,					#confirmation
+			mavutil.mavlink.MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED,	# message
+			0,0,0,0,0,			# Ignored
 			0)      			# Response target
 		self.send_mavlink(msg)	# send command to vehicle
 
@@ -91,20 +116,30 @@ class MyVehicle(Vehicle):
 	def get_mode(self):
 		""" Obtiene el System mode para el protocolo de comunicación """
 		mode = self.mode.name
-		if mode == "LOITER" or mode == "MANUAL":
+		if mode == "LOITER" or mode == "MANUAL" or mode == "HOLD":
 			return '1'
 		elif mode == "GUIDED":
 			return '2'
 		else:
 			return '3'
 
+	#-------------------------------------------------------------------
+	#	Funciones para controlar el movimiento  y orientación
+	#-------------------------------------------------------------------
+	#	Coordenadas NED
+	# 	Con origen EKF (primera vez que se obtiene la señal de GPS) en 
+	# 	un frame NED, orientación con 0 en el norte
+	#		x: meters North		y: meters East
+	#	Coordenadas relativas
+	# 	Con origen en el vehículo, orientación con 0 hacia adelante
+	#		x: meters forward	y: meters right
 	def arm(self):
 		""" Habilita motores y cambia a modo guiado """
 		while not self.is_armable:
 			print("Vehicle is not armable yet...")
 			time.sleep(1)
 		print("Arming motors")
-		self.mode    = VehicleMode("GUIDED")
+		#self.mode    = VehicleMode("HOLD")
 		self.armed   = True
 		while not self.armed:
 			print("Waiting for arming...")
@@ -120,75 +155,155 @@ class MyVehicle(Vehicle):
 			time.sleep(1)
 		print("Disarmed")
 
-	def set_heading(self, heading):
-		"""
-		Envía un comando para que le vehículo mire a cierta orientación relativa
-		a la orientación actual, en grados sexagesimales y sentido horario.
-		A los 3 segundos el vehículo para automáticamente, así que debe enviarse
-		cada 3 segundos con un nuevo objetivo.
-		"""
-		msg = self.message_factory.set_position_target_local_ned_encode(
-			0,       # time_boot_ms (not used)
-			0, 0,    # target system, target component
-			mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,	# Relativo a la orientacion actual
-			0b100111111111, 	# type_mask (only yaw)
-			0, 0, 0,			# x, y, z position (not used) 
-			0, 0, 0, 			# x, y, z velocity in m/s  (not used)
-			0, 0, 0, 			# x, y, z acceleration (not supported)
-			heading*math.pi/180, 0)    		# yaw, yaw_rate
-		self.send_mavlink(msg)
-
-	def go_to(self, forward, right):
-		"""	
-		Envía un comando para que el vehículo vaya a una posición relativa,
-		x: meters forward, y: meters right		
-		Una vez en el que llega, merodeará/circulará alrededor del destino.
-		"""
-		dNorth,dEast = self.convert_local_to_NED(forward,right)
-		current = self.location.local_frame
-		newNorth = current.north + dNorth
-		newEast = current.east + dEast
-
-		# Set target atribute
-		self._target = LocationLocal(newNorth, newEast,current.down)
+	def go_to(self, x, y, relative=True, blocking=False, tolerance = 2):
+		""" Envía un comando para que el vehículo vaya a una posición.	
+		Una vez que llega, merodeará/circulará alrededor del destino.
+			relative:	Indica si las coordenadas son relativas al vehículo o NED 
+			blocking:	Indica si debe bloquear hasta llegar al objetivo
+			tolerance:	Tolerancia en metros para decidir si de ha llegado al objetivo """
+		# Guarda objetivo en coordenadas absolutas en variable target
+		if relative:
+			sent_target = self.convert_relative_to_NED(x,y)
+		else:
+			sent_target = LocationLocal(x,y,0)
 		
-		# Set target relative to the vehicle's EKF Origin in NED frame 
+		# Generación de comando y envío
 		msg = self.message_factory.set_position_target_local_ned_encode(
 			0,       # time_boot_ms (not used)
 			0, 0,    # target system, target component
 			mavutil.mavlink.MAV_FRAME_LOCAL_NED, 
 			0b110111111100, 		# type_mask (only x,y positions enabled)
-			newNorth, newEast, 0,	# x, y, z position
+			sent_target.north, sent_target.east, 0,		# x, y, z position
 			0, 0, 0, 				# x, y, z velocity in m/s  (not used)
 			0, 0, 0, 				# x, y, z acceleration (not supported)
 			0, 0)    				# yaw, yaw_rate (not used) 
 		self.send_mavlink(msg)
 
+		# Solicita la posicion del objetivo a la pixhawk
+		#self.request_target()
+		self._target = sent_target
+
+		# Espera hasta llegar al objetivo
+		while True:
+			if not blocking or self.reached_target(tolerance):
+				break
+			time.sleep(0.1)		# Chequea 10 veces por segundo
+
+	def set_heading(self, heading, relative=True, blocking=False, tolerance = 15):
+		"""	Envía un comando para que el vehículo mire a cierta orientación. 
+		La función puede bloquear hasta que se llegue al objetivo, caso contrario,
+		debe enviarse cada 3 segundos con un nuevo objetivo.
+			heading: 	Orientación en grados sexagesimales, sentido horario 
+			relative:	Indica si la orientación es relativa al vehículo o absoluta 
+			blocking:	Indica si debe bloquear hasta llegar al objetivo
+			tolerance:	Tolerancia en grados sexagesimales. Solo se utiliza si
+						blocking = True. La funcion termina cuando la orientacion
+						es la orientecion deseada +- tolerancia """
+		# Hallar orientacion en coordenadas absolutas
+		if relative:
+			theta = reduce_angle(self.attitude.yaw + heading*math.pi/180)
+		else:
+			theta = heading*math.pi/180
+		tolerance_rad = tolerance*math.pi/180
+
+		# Generacion del mensaje
+		msg = self.message_factory.set_position_target_local_ned_encode(
+			0,       	# time_boot_ms (not used)
+			0, 0,   	# target system, target component
+			mavutil.mavlink.MAV_FRAME_LOCAL_NED,		# Eje relativo o absoluto
+			0b100111111111, 	# type_mask (only yaw)
+			0, 0, 0,			# x, y, z position (not used) 
+			0, 0, 0, 			# x, y, z velocity in m/s  (not used)
+			0, 0, 0, 			# x, y, z acceleration (not supported)
+			theta, 0)    		# yaw, yaw_rate in rad
+		
+		# Envío del mensaje en bucle
+		while True:
+			self.send_mavlink(msg)
+			if not blocking or abs(reduce_angle(theta - self.attitude.yaw))<tolerance_rad:
+				break
+			time.sleep(0.5)
+
+	def point_to(self, x, y, relative=True, blocking=False, tolerance = 15):
+		""" Dada unas coordenadas absolutas o relativas, envía un
+		comando al vehículo para que apunte a esa dirección """
+		# Convertir el objetivo (region of interest) a coordenadas absolutas
+		if relative:
+			roi = self.convert_relative_to_NED(x,y)
+		else:
+			roi = LocationLocal(x,y,0)
+		
+		# Hallar orientacion deseada
+		current = self.location.local_frame
+		dN = roi.north - current.north
+		dE = roi.east - current.east
+		theta = math.atan2(dE,dN)
+
+		# Cambia orientacion
+		self.set_heading(theta, relative=relative,blocking=blocking,tolerance=tolerance)
+
+	def circle(self,x,y,relative=True,r=10,CW=True,num_angles=8):
+		""" Manda comandos para rodear un objetivo en las coordenadas (x,y)
+		Bloquea hata llegar al objetivo.
+			relative:	indica si el centro está en coordenadas relativas o absolutas
+			r: 			radio en metros
+			CW: 		sentido de giro horario
+			num_angles: número de puntos del circulo """
+		# Convertir el centro a coordenadas absolutas
+		if relative:
+			center = self.convert_relative_to_NED(x,y)
+		else:
+			center = LocationLocal(x,y,0)
+		
+		# Obtener puntos alrededor del centro
+		puntosN = []
+		puntosE = []
+		vN = center.north - self.location.local_frame.north
+		vE = center.east - self.location.local_frame.east
+		for k in range(num_angles):
+			theta_k = k*2*math.pi/num_angles
+			if not CW:
+				theta_k = -theta_k
+			PkN = center.north - r*math.cos(theta_k)*vN - r*math.sin(theta_k)*vE
+			puntosN.append(PkN)
+			PkE = center.east - r*math.cos(theta_k)*vE + r*math.sin(theta_k)*vN
+			puntosE.append(PkE)
+
+		# Rodear objeto. No envía el siguiente comando a menos que se acerce al objetivo
+		# a una distancia de 10% del radio
+		for i in range(num_angles):
+			self.go_to(puntosN[i],puntosE[i],relative=False,blocking=True,tolerance=0.1*r)
+
+		# Volver al primer punto
+		self.go_to(puntosN[0],puntosE[0],relative=False,blocking=True,tolerance=0.1*r)
+
+	#-------------------------------------------------------------------
+	#	Otras funciones de utilidad
+	#-------------------------------------------------------------------
 	def reached_target(self,tolerance):
-		""" Función que te dice si has llegado al objetivo o no.
-		Se debe ingresar la tolerancia en metros.
-		Si la distancia al objetivo es menor que la tolerancia,
-		devuelve Verdadero. Si no, devuelve Falso """
+		""" Indica si se ha llegado al último objetivo o no. Se debe ingresar
+		la tolerancia en metros. Si la distancia al objetivo es menor que la
+		tolerancia, devuelve Verdadero. Si no, devuelve Falso """
 		distance = get_distance_metres(self.location.local_frame, self.target)
 		if distance < tolerance:
 			return True
 		else:
 			return False
 
-	def convert_local_to_NED(self,dx,dy):
-		"""
-		Convierte coordenadas del eje local a NED
-		dx: Metros al frente
-		dy: Metros hacia la derecha
-		dN: Metros al Norte
-		dE: Metros al este
-		"""
+	def convert_relative_to_NED(self,dx,dy):
+		""" Convierte coordenadas relativas a absolutas.
+			dx: Metros al frente
+			dy: Metros hacia la derecha
+		Devuelve un objeto LocationLocal """
 		yaw = self.attitude.yaw
 		ct = math.cos(yaw)
 		st = math.sin(yaw)
-		dE = ct*dy + st*dx
-		dN = -st*dy + ct*dx
-		return dN,dE
+		dE = ct*dy + st*dx		# Metros al este
+		dN = -st*dy + ct*dx		# Metros al norte
+		current = self.location.local_frame
+		newNorth = current.north + dN
+		newEast = current.east + dE
+		return LocationLocal(newNorth, newEast,0)
 
 #-------------------------------------------------------------------
 #	FUNCIONES DE UTILIDAD
@@ -197,4 +312,8 @@ def get_distance_metres(current,target):
 	""" Halla la distancia en metros entre dos ubicaciones locales """
 	dNorth = current.north - target.north
 	dEast = current.east - target.east
-	return math.sqrt(dNorth**2 + dEast**2) 
+	return float(math.sqrt(dNorth**2 + dEast**2))
+
+def reduce_angle(angle):
+	""" Dado un angulo en radianes, lo reduce al ángulo -PI a PI """
+	return ((angle + math.pi) % (2*math.pi)) - math.pi
