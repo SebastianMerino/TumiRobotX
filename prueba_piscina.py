@@ -26,35 +26,27 @@ if Pix_EST == 1:
 else:
 	raise Exception("no esta la pixhawk pipipipipi")
 
-# Solo mostrar mensajes de error críticos
-logger = logging.getLogger('autopilot')
-logger.setLevel(logging.CRITICAL)
 
 try:
-	while not vehicle.get_mode() == 2:
+	while not (vehicle.mode.name == 'GUIDED'):
 		pass
-	vehicle.groundspeed = 0.15     # Velocidad de movimiento 1m/s
-	"""
+	print('MODO AUTONOMO')
+	vehicle.groundspeed = 0.3     # Velocidad de movimiento 1m/s
+	
 	#----------------------------------------------------------------------------
 	# PRUEBA IDA Y VUELTA
 	#----------------------------------------------------------------------------
 	# 5m hacia adelante
-	vehicle.go_to(x=5,y=0,relative=True,blocking=True,tolerance=1)
-	# Giro de 180
-	vehicle.set_heading(180,relative=True,blocking=True,tolerance=10)
-	# 5m de regreso
-	vehicle.go_to(x=5,y=0,relative=True,blocking=True,tolerance=1)
+	vehicle.go_to(x=3,y=0,relative=True,blocking=True,tolerance=-1)
+	while True:
+		pass
 	"""
-
 	#----------------------------------------------------------------------------
 	# PRUEBA GIROS
 	#----------------------------------------------------------------------------
-	vehicle.set_heading(180,relative=True,blocking=True,tolerance=10)
-	time.sleep(1)
-	vehicle.set_heading(-90,relative=True,blocking=True,tolerance=10)
-	time.sleep(1)
-	vehicle.set_heading(90,relative=True,blocking=True,tolerance=10)
-	
+	vehicle.set_heading(-90,relative=True,blocking=True,tolerance=-1)
+	print("eres un huevon")
+	"""
 finally:
 	vehicle.disarm()
 	vehicle.close()

@@ -32,7 +32,7 @@ def taskMsg():
 		MessageID = "$RXHRB"
 		(Latitude, NSIndicator, Longitud, EWIndicator) = pixhawk.get_location()
 		SystemMode = pixhawk.get_mode()
-		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
+		msg = MessageID + "," + AEDTDate +  "," + AEDTTime +  "," + TeamID +  "," + Latitude +  "," + NSIndicator +  "," + Longitud +  "," + EWIndicator +  "," + SystemMode +  "," + UAVStatus +  "*"
 	elif task == "2":
 		MessageID = "$RXGAT"
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + ActEntGate +  "," + ActExtGate +  "*"
@@ -53,12 +53,10 @@ def taskMsg():
 		msg = MessageID +  "," + AEDTDate +  "," + AEDTTime +  "," + TeamID + "," + Color + "," + AMSStatus + "*"
 	elif task == "8":
 		MessageID = "$RXUAV"
-		msg = "Mensaje Tarea 8 *"
+		msg = "Realizando Tarea 10 *"
 	elif task == "9":
 		MessageID = "$RXUAV"
-		msg = "Mensaje Tarea 9 *"
-	else:
-		raise Exception("Tarea no disponible")
+		msg = "Realizando Tarea 11 *"
 
 	msg_final = msg + str(checksum(msg)).upper()
 	print(msg_final)
@@ -152,23 +150,6 @@ AMSStatus = ""
 Color = ""
 AMSStatus = ""
 
-# C10, Task 8
-UAVStatus = ""
-Item = ""
-Status = ""
-
-# C11, Task 9
-Object1 = ""
-Obj1Latitude = ""
-Obj1NSIndicator = ""
-Obj1Longitud = ""
-Obj1EWIndicator = ""
-Object2 = ""
-Obj2Latitude = ""
-Obj2NSIndicator = ""
-Obj2Longitud = ""
-Obj2EWIndicator = ""
-UAVStatus = ""
 ###########################      Datos Lidar     ###############################
 
 distancia_max = 12000				#distancia maxima de alcance del lidar
@@ -209,8 +190,8 @@ altura_camara = 800				#tamaño por default
 device_list = list_ports.comports()
 
 for device in device_list:
-	#print(device.vid)
-	#print(device.pid)
+	print(device.vid)
+	print(device.pid)
 	if (device.vid != None or device.pid != None):
 		if (device.vid == Nuc_VID and device.pid == Nuc_PID):
 			Nuc = device.device
