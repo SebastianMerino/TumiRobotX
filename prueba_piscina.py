@@ -44,7 +44,6 @@ try:
 	# PRUEBA GIROS
 	#----------------------------------------------------------------------------
 	vehicle.set_heading(-90,relative=True,blocking=True,tolerance=-1)
-	print("eres un huevon")
 	"""
 finally:
 	vehicle.disarm()
