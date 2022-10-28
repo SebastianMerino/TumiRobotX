@@ -38,8 +38,7 @@ try:
 	#----------------------------------------------------------------------------
 	# 5m hacia adelante
 	vehicle.go_to(x=3,y=0,relative=True,blocking=True,tolerance=-1)
-	while True:
-		pass
+
 	"""
 	#----------------------------------------------------------------------------
 	# PRUEBA GIROS

@@ -5,6 +5,7 @@ comunicación entre Pixhawk y Jetson para el proyecto WAM-V
 Prueba de movimiento
 """
 import logging
+import threading
 from motionControl import *
 from dronekit import connect
 from serial.tools import list_ports
@@ -36,66 +37,80 @@ vehicle.request_pwm(10)
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
+# Simulacion del mando
+def gaaaa():
+	vehicle.arm()
+	time.sleep(5)
+	vehicle.mode = VehicleMode('GUIDED')
+	while not vehicle.mode.name == 'GUIDED':
+		pass
+	while vehicle.mode.name == 'GUIDED':
+		time.sleep(10)
+		vehicle.armed = False
+		time.sleep(5)
+		vehicle.armed = True
+t = threading.Thread(target=gaaaa, daemon=True)
+t.start()
 
 #----------------------------------------------------------------------------
 # COMANDO PARA MOVER AL VEHICULO
 #----------------------------------------------------------------------------
 vehicle.groundspeed = 0.5     # Velocidad de movimiento 1m/s
-forward = 0
-right = -3
-
+forward = 5
+right = 0
+"""
 try:
-    while vehicle.get_mode()==1:
-        print(vehicle.mode)
-        time.sleep(0.5)
-        print(LINE_UP, end=LINE_CLEAR)
-        pass
-    print('Enviando al vehículo ',forward,'m al frente y ',right,'m a la derecha')
-    vehicle.go_to(forward,right)
-    while True:
-        current = vehicle.location.local_frame
-        print("\nCurrent position:\t", current)
-        target = vehicle.target
-        print("Target position:\t", target)
-        remainingDistance = get_distance_metres(current, target)
-        print("Distance to target:\t", remainingDistance)
-        print(vehicle.raw_pwm)
-        print(vehicle.mode)
-        print('Speed:', vehicle.velocity)
+	while vehicle.get_mode()==1:
+		print(vehicle.mode)
+		time.sleep(0.5)
+		print(LINE_UP, end=LINE_CLEAR)
+		pass
+	print('Enviando al vehículo ',forward,'m al frente y ',right,'m a la derecha')
+	vehicle.go_to(forward,right,relative=True,blocking=False)
+	
+	while True:
+		current = vehicle.location.local_frame
+		print("\nCurrent position:\t", current)
+		target = vehicle.target
+		print("Target position:\t", target)
+		remainingDistance = get_distance_metres(current, target)
+		print("Distance to target:\t", remainingDistance)
+		print(vehicle.raw_pwm)
+		print(vehicle.mode)
+		print('Armed:', vehicle.armed)
 
-        time.sleep(0.5)
-
-        for _ in range(7):
-            print(LINE_UP, end=LINE_CLEAR)
+		time.sleep(0.5)
+		vehicle.go_to(vehicle.target.north,vehicle.target.east,relative=False,blocking=False)
+		for _ in range(7):
+			print(LINE_UP, end=LINE_CLEAR)
 
 finally:
-    vehicle.close()
-
-
+	vehicle.close()
 """
+
+
 #----------------------------------------------------------------------------
 # COMANDO PARA CAMBIAR ORIENTACIÓN
 #----------------------------------------------------------------------------
 try:
-    heading = -90
-    print("Pidiendo al vehículo que mire hacia: ", heading)
-    theta = reduce_angle(vehicle.attitude.yaw*180/math.pi + heading)
+	heading = -90
+	print("Pidiendo al vehículo que mire hacia: ", heading)
+	theta = reduce_angle(vehicle.attitude.yaw*180/math.pi + heading)
 
-    while True:
-        vehicle.set_heading(theta, relative=False) 
-        print('Yaw angle:\t', vehicle.attitude.yaw*180/math.pi)
-        print('Target angle:\t', theta) 
-        difference = reduce_angle(vehicle.attitude.yaw - theta*math.pi/180)*180/math.pi
-        print('Difference: ', difference)
-        print(vehicle.raw_pwm)
-        print(vehicle.mode)
-        print('Armed:', vehicle.armed)
-        
-        time.sleep(1)
-        for _ in range(6):
-            print(LINE_UP, end=LINE_CLEAR)
+	while True:
+		vehicle.set_heading(theta, relative=False, blocking=False) 
+		print('Yaw angle:\t', vehicle.attitude.yaw*180/math.pi)
+		print('Target angle:\t', theta) 
+		difference = reduce_angle(vehicle.attitude.yaw - theta*math.pi/180)*180/math.pi
+		print('Difference: ', difference)
+		print(vehicle.raw_pwm)
+		print(vehicle.mode)
+		print('Armed:', vehicle.armed)
+		
+		time.sleep(1)
+		for _ in range(6):
+			print(LINE_UP, end=LINE_CLEAR)
 
 finally:
    
-    vehicle.close()
-"""
+	vehicle.close()

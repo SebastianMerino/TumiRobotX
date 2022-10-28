@@ -204,7 +204,7 @@ class MyVehicle(Vehicle):
 				#raise Exception('Command interrupted. Vehicle is not on GUIDED mode')
 			time.sleep(0.5)
 
-	def point_to(self, x, y, relative=True, blocking=False, tolerance = 15):
+	def point_to(self, x, y, relative=True, blocking=True, tolerance = 15):
 		""" Dada unas coordenadas absolutas o relativas, envía un
 		comando al vehículo para que apunte a esa dirección """
 		# Convertir el objetivo (region of interest) a coordenadas absolutas
