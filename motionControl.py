@@ -220,7 +220,7 @@ class MyVehicle(Vehicle):
 		theta = math.atan2(dE,dN)
 
 		# Cambia orientacion
-		self.set_heading(theta, relative=relative,blocking=blocking,tolerance=tolerance)
+		self.set_heading(theta, relative=False,blocking=blocking,tolerance=tolerance)
 
 	def circle(self,x,y,relative=True,r=10,CW=True,num_angles=8):
 		""" Manda comandos para rodear un objetivo en las coordenadas (x,y)

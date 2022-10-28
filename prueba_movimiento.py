@@ -44,11 +44,11 @@ def gaaaa():
 	vehicle.mode = VehicleMode('GUIDED')
 	while not vehicle.mode.name == 'GUIDED':
 		pass
-	while vehicle.mode.name == 'GUIDED':
+	while True:
 		time.sleep(10)
-		vehicle.armed = False
+		vehicle.mode = VehicleMode('HOLD')
 		time.sleep(5)
-		vehicle.armed = True
+		vehicle.mode = VehicleMode('GUIDED')
 t = threading.Thread(target=gaaaa, daemon=True)
 t.start()
 
@@ -67,7 +67,7 @@ try:
 		pass
 	print('Enviando al vehículo ',forward,'m al frente y ',right,'m a la derecha')
 	vehicle.go_to(forward,right,relative=True,blocking=False)
-	
+
 	while True:
 		current = vehicle.location.local_frame
 		print("\nCurrent position:\t", current)
